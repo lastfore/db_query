@@ -94,6 +94,25 @@ class DatabaseAdapterRegistry:
 
         return self._instances[cache_key]
 
+    def create_adapter(
+        self, db_type: DatabaseType, config: ConnectionConfig
+    ) -> DatabaseAdapter:
+        """Create a new adapter instance without caching.
+
+        Used for one-off probes (e.g. connection test before save) so each URL
+        is evaluated with a fresh config. ``get_adapter`` keys only by
+        ``db_type`` and ``config.name``, so reusing it for every probe would
+        leave a stale ``ConnectionConfig.url`` after the first call.
+        """
+        if db_type not in self._adapters:
+            available = [t.value for t in self._adapters.keys()]
+            raise ValueError(
+                f"Unsupported database type: {db_type.value}. "
+                f"Available types: {available}"
+            )
+        adapter_class = self._adapters[db_type]
+        return adapter_class(config)
+
     async def close_adapter(self, db_type: DatabaseType, name: str) -> None:
         """Close and remove adapter instance.
 

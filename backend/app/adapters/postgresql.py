@@ -10,6 +10,7 @@ from app.adapters.base import (
     QueryResult,
     MetadataResult,
 )
+from app.utils.db_parser import postgresql_url_for_asyncpg
 
 
 class PostgreSQLAdapter(DatabaseAdapter):
@@ -18,7 +19,8 @@ class PostgreSQLAdapter(DatabaseAdapter):
     async def test_connection(self) -> Tuple[bool, Optional[str]]:
         """Test PostgreSQL connection."""
         try:
-            conn = await asyncpg.connect(self.config.url)
+            dsn = postgresql_url_for_asyncpg(self.config.url)
+            conn = await asyncpg.connect(dsn)
             await conn.close()
             return True, None
         except Exception as e:
@@ -27,8 +29,9 @@ class PostgreSQLAdapter(DatabaseAdapter):
     async def get_connection_pool(self) -> asyncpg.Pool:
         """Get or create asyncpg connection pool."""
         if self._pool is None:
+            dsn = postgresql_url_for_asyncpg(self.config.url)
             self._pool = await asyncpg.create_pool(
-                self.config.url,
+                dsn,
                 min_size=self.config.min_pool_size,
                 max_size=self.config.max_pool_size,
                 command_timeout=self.config.command_timeout,

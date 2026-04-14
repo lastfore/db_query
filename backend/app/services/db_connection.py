@@ -1,9 +1,10 @@
 """Database connection service for managing PostgreSQL connections."""
 
 import asyncpg
-from typing import Dict
 from datetime import datetime
-from app.models.database import DatabaseConnection, ConnectionStatus
+from typing import Dict
+
+from app.utils.db_parser import postgresql_url_for_asyncpg
 
 
 # Global connection pool cache
@@ -21,7 +22,8 @@ async def test_connection(url: str) -> tuple[bool, str | None]:
         Tuple of (success, error_message)
     """
     try:
-        conn = await asyncpg.connect(url)
+        dsn = postgresql_url_for_asyncpg(url)
+        conn = await asyncpg.connect(dsn)
         await conn.close()
         return True, None
     except Exception as e:
@@ -44,8 +46,9 @@ async def get_connection_pool(
         asyncpg connection pool
     """
     if name not in _connection_pools:
+        dsn = postgresql_url_for_asyncpg(url)
         pool = await asyncpg.create_pool(
-            url,
+            dsn,
             min_size=min_size,
             max_size=max_size,
             command_timeout=60,

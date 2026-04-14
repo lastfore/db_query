@@ -18,8 +18,10 @@ uv sync --extra dev
 ## 本地运行
 
 ```bash
-uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+在部分 Windows 环境下，`uv run uvicorn` 可能报 `uv trampoline failed to canonicalize script path`，使用上面的 `python -m uvicorn` 形式可避免。
 
 启动后可通过 `http://localhost:8000/docs` 查看 OpenAPI 文档，`GET /health` 用于健康检查。
 

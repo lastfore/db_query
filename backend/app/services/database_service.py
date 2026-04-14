@@ -55,8 +55,8 @@ class DatabaseService:
                 "postgresql://localhost/test"
             )
         """
-        config = ConnectionConfig(url=url, name="test")
-        adapter = self.registry.get_adapter(db_type, config)
+        config = ConnectionConfig(url=url, name="__connection_probe__")
+        adapter = self.registry.create_adapter(db_type, config)
         return await adapter.test_connection()
 
     async def execute_query(

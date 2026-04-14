@@ -1,0 +1,8 @@
+# Local secrets and environment overrides (keep .env.example / .env.local.example tracked)
+.env
+.env.local
+.env.*.local
+
+# OS / editor noise at repo root
+.DS_Store
+Thumbs.db

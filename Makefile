@@ -34,7 +34,7 @@ dev: dev-backend dev-frontend ## Start both backend and frontend (in parallel)
 
 dev-backend: ## Start backend development server
 	@echo "$(BLUE)Starting backend server on http://localhost:8000$(NC)"
-	cd $(BACKEND_DIR) && $(UV) run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+	cd $(BACKEND_DIR) && $(UV) run python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 dev-frontend: ## Start frontend development server
 	@echo "$(BLUE)Starting frontend server on http://localhost:5173$(NC)"
@@ -104,24 +104,24 @@ db-migrate: ## Create a new database migration (use MESSAGE="description")
 		echo "$(YELLOW)Usage: make db-migrate MESSAGE=\"your migration message\"$(NC)"; \
 		exit 1; \
 	fi
-	cd $(BACKEND_DIR) && $(UV) run alembic revision --autogenerate -m "$(MESSAGE)"
+	cd $(BACKEND_DIR) && $(UV) run python -m alembic revision --autogenerate -m "$(MESSAGE)"
 
 db-upgrade: ## Apply database migrations
 	@echo "$(BLUE)Applying database migrations...$(NC)"
-	cd $(BACKEND_DIR) && $(UV) run alembic upgrade head
+	cd $(BACKEND_DIR) && $(UV) run python -m alembic upgrade head
 
 db-downgrade: ## Rollback database migration (use REVISION=previous)
 	@if [ -z "$(REVISION)" ]; then \
 		echo "$(YELLOW)Usage: make db-downgrade REVISION=previous$(NC)"; \
 		exit 1; \
 	fi
-	cd $(BACKEND_DIR) && $(UV) run alembic downgrade $(REVISION)
+	cd $(BACKEND_DIR) && $(UV) run python -m alembic downgrade $(REVISION)
 
 db-history: ## Show migration history
-	cd $(BACKEND_DIR) && $(UV) run alembic history
+	cd $(BACKEND_DIR) && $(UV) run python -m alembic history
 
 db-current: ## Show current database revision
-	cd $(BACKEND_DIR) && $(UV) run alembic current
+	cd $(BACKEND_DIR) && $(UV) run python -m alembic current
 
 # Cleanup
 clean: clean-backend clean-frontend ## Clean all build artifacts
@@ -156,7 +156,7 @@ setup: install db-upgrade ## Initial setup: install dependencies and run migrati
 	@echo "$(GREEN)Setup complete!$(NC)"
 	@echo ""
 	@echo "Next steps:"
-	@echo "  1. Copy backend/.env.example to backend/.env and add your OPENAI_API_KEY"
+	@echo "  1. Copy backend/.env.example to backend/.env and set NL2SQL_PROVIDER + the matching API key"
 	@echo "  2. Run 'make dev' to start both servers"
 	@echo "  3. Open http://localhost:5173 in your browser"
 

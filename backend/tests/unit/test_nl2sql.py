@@ -1,14 +1,17 @@
 """Unit tests for natural language to SQL conversion service."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+
+from app.config import settings as app_settings
 from app.services.nl2sql import NaturalLanguageToSQLService
 
 
 @pytest.fixture
 def nl2sql_service():
-    """Create NaturalLanguageToSQLService instance."""
-    return NaturalLanguageToSQLService()
+    """Create service with an injectable mock client (no real API key)."""
+    return NaturalLanguageToSQLService(client=MagicMock())
 
 
 @pytest.fixture
@@ -127,8 +130,10 @@ class TestGenerateSql:
             assert result["sql"] == "SELECT * FROM public.users LIMIT 100"
             assert "Show me all users" in result["explanation"]
 
-            # Verify OpenAI call parameters
-            assert call_args.kwargs["model"] == "gpt-4o-mini"
+            # Verify LLM call parameters
+            assert call_args.kwargs["model"] == app_settings.openai_model
+            assert call_args.kwargs["temperature"] == 0.1
+            assert call_args.kwargs["max_tokens"] == app_settings.nl2sql_max_tokens
 
     @pytest.mark.asyncio
     async def test_generate_sql_removes_markdown(self, nl2sql_service, sample_metadata):
@@ -254,9 +259,68 @@ class TestGenerateSql:
             assert "Failed to generate SQL" in str(exc_info.value)
             assert "OpenAI API error" in str(exc_info.value)
 
+    @pytest.mark.asyncio
+    async def test_generate_sql_empty_llm_content_fails(self, nl2sql_service, sample_metadata):
+        """Empty model content is treated as failure."""
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content=""))]
+
+        with patch.object(
+            nl2sql_service.client.chat.completions,
+            "create",
+            new=AsyncMock(return_value=mock_response),
+        ):
+            with pytest.raises(Exception, match="Failed to generate SQL"):
+                await nl2sql_service.generate_sql(
+                    user_prompt="Show me all users",
+                    metadata=sample_metadata,
+                )
+
+    @pytest.mark.asyncio
+    async def test_generate_sql_none_content_fails(self, nl2sql_service, sample_metadata):
+        mock_response = MagicMock()
+        mock_response.choices = [MagicMock(message=MagicMock(content=None))]
+
+        with patch.object(
+            nl2sql_service.client.chat.completions,
+            "create",
+            new=AsyncMock(return_value=mock_response),
+        ):
+            with pytest.raises(Exception, match="Failed to generate SQL"):
+                await nl2sql_service.generate_sql(
+                    user_prompt="x",
+                    metadata=sample_metadata,
+                )
+
+
+class TestProviderSelection:
+    """NL2SQL_PROVIDER maps to the expected configured model id."""
+
+    def test_openai_default_model(self, monkeypatch):
+        monkeypatch.setattr(app_settings, "nl2sql_provider", "openai")
+        svc = NaturalLanguageToSQLService(client=MagicMock())
+        assert svc.model == app_settings.openai_model
+
+    def test_moonshot_model(self, monkeypatch):
+        monkeypatch.setattr(app_settings, "nl2sql_provider", "moonshot")
+        svc = NaturalLanguageToSQLService(client=MagicMock())
+        assert svc.model == app_settings.moonshot_model
+
+    def test_deepseek_model(self, monkeypatch):
+        monkeypatch.setattr(app_settings, "nl2sql_provider", "deepseek")
+        svc = NaturalLanguageToSQLService(client=MagicMock())
+        assert svc.model == app_settings.deepseek_model
+
+    def test_build_client_requires_key_for_openai(self, monkeypatch):
+        monkeypatch.setattr(app_settings, "nl2sql_provider", "openai")
+        monkeypatch.setattr(app_settings, "openai_api_key", "")
+        svc = NaturalLanguageToSQLService()
+        with pytest.raises(ValueError, match="API key"):
+            svc._build_client()
+
 
 class TestBuildPrompt:
-    """Test prompt building for OpenAI."""
+    """Test prompt building for the LLM."""
 
     def test_build_prompt_includes_schema(self, nl2sql_service, sample_metadata):
         """Test that prompt includes database schema information."""

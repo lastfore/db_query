@@ -24,7 +24,7 @@ make install
 
 # Setup database and environment
 make setup
-# Then edit backend/.env and add your OPENAI_API_KEY
+# Then edit backend/.env: set NL2SQL_PROVIDER and the matching API key (see backend/.env.example)
 
 # Start development servers
 make dev

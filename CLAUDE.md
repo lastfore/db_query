@@ -51,7 +51,7 @@ backend/
 
 Key files:
 - app/main.py:          Entry point, CORS configuration
-- app/config.py:        Settings (OPENAI_API_KEY required in .env)
+- app/config.py:        Settings (NL→SQL LLM provider & keys; see `.env.example`)
 - app/database.py:      Session management (SQLite for metadata)
 - app/services/:        Core business logic (query execution, metadata extraction)
 ```
@@ -125,7 +125,7 @@ make install
 
 # Run database migrations & setup
 make setup
-# Then edit backend/.env and add OPENAI_API_KEY
+# Then edit backend/.env: set NL2SQL_PROVIDER and the matching API key (see backend/.env.example)
 
 # Start both servers
 make dev
@@ -279,7 +279,7 @@ class QueryResult(BaseModel):
 ### Natural Language to SQL
 
 **Service:** `app/services/nl2sql.py`
-- Uses OpenAI API (GPT model, requires OPENAI_API_KEY in .env)
+- Uses an OpenAI-compatible Chat Completions API (`AsyncOpenAI` + `base_url`); provider is `NL2SQL_PROVIDER` (`openai`, `moonshot`, or `deepseek`) with the matching API key in `.env`
 - Takes user prompt + database metadata + schema context
 - Returns generated SQL + explanation
 - Cached metadata reduces API calls
@@ -316,7 +316,7 @@ class QueryResult(BaseModel):
 
 **API Calls:**
 - Axios with Refine's SimpleRest provider
-- Base URL from .env.local: `VITE_API_URL` (default: http://localhost:8000)
+- Base URL from `.env.local`: `VITE_API_BASE_URL` (default: `http://localhost:8000`; must not include `/api/v1`)
 - Automatic error handling & loading states
 
 ## Key Files by Purpose
@@ -350,10 +350,19 @@ class QueryResult(BaseModel):
 ### Backend Environment (.env)
 
 ```bash
-# Required
+# NL→SQL: set provider and the key for that provider (see backend/.env.example for all variables)
+NL2SQL_PROVIDER=openai
 OPENAI_API_KEY=sk-...
 
 # Optional (defaults shown)
+OPENAI_MODEL=gpt-4o-mini
+MOONSHOT_BASE_URL=https://api.moonshot.cn/v1
+MOONSHOT_MODEL=moonshot-v1-8k
+DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+DEEPSEEK_MODEL=deepseek-chat
+NL2SQL_MAX_TOKENS=500
+# NL2SQL_TIMEOUT_SECONDS=
+
 LOG_LEVEL=INFO
 CORS_ORIGINS=*
 QUERY_DEFAULT_LIMIT=1000
@@ -369,7 +378,7 @@ DB_QUERY_DATA_DIR=~/.db_query
 
 ```bash
 # Optional (default: http://localhost:8000)
-VITE_API_URL=http://localhost:8000
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
 ## Database Schema (SQLite Metadata)
@@ -408,7 +417,7 @@ VITE_API_URL=http://localhost:8000
 
 ## Known Limitations & Gotchas
 
-1. **NL→SQL Costs**: OpenAI API calls have usage costs; metadata extraction via database queries is free.
+1. **NL→SQL Costs**: LLM API calls have usage costs; metadata extraction via database queries is free.
 2. **Query Limits**: Default result limit is 1000 rows (configurable). Larger results may timeout.
 3. **Export Size**: CSV/JSON exports happen entirely in browser memory; very large result sets may crash.
 4. **Connection Pool**: Multiple simultaneous queries from different connections may exhaust pool (max 5 by default).
@@ -441,6 +450,6 @@ Apply consistently when adding UI features.
 - **Backend**: uvicorn with gunicorn for production
 - **Frontend**: Static build output served via nginx/CDN
 - **SQLite Database**: Stored in `~/.db_query/db_query.db`; ensure persistent volume
-- **Environment**: Backend requires OPENAI_API_KEY in production
+- **Environment**: Backend requires a valid NL→SQL API key for the configured `NL2SQL_PROVIDER` in production
 - **CORS**: Set CORS_ORIGINS to frontend domain in production
 - **Connection Credentials**: Stored in SQLite (consider encryption at rest)

@@ -131,7 +131,9 @@ async def natural_language_to_sql(
     session: Session = Depends(get_session),
 ) -> GeneratedSqlResponse:
     """
-    Convert natural language to SQL query using OpenAI.
+    Convert natural language to SQL using the configured LLM provider.
+
+    Provider is selected via NL2SQL_PROVIDER (openai, moonshot / Kimi, or deepseek).
 
     Args:
         name: Database connection name

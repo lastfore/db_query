@@ -1,14 +1,31 @@
 """Application configuration using Pydantic Settings."""
 
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Literal
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+NL2SQLProvider = Literal["openai", "moonshot", "deepseek"]
 
 
 class Settings(BaseSettings):
     """Application settings."""
 
-    # OpenAI API
-    openai_api_key: str
+    # Natural language → SQL (OpenAI-compatible Chat Completions)
+    nl2sql_provider: NL2SQLProvider = "openai"
+    openai_api_key: str = ""
+    openai_base_url: str | None = None
+    openai_model: str = "gpt-4o-mini"
+    moonshot_api_key: str = ""
+    moonshot_base_url: str = "https://api.moonshot.cn/v1"
+    moonshot_model: str = "moonshot-v1-8k"
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://api.deepseek.com/v1"
+    deepseek_model: str = "deepseek-chat"
+    nl2sql_timeout_seconds: float | None = None
+    nl2sql_max_tokens: int = 500
 
     # Data directory
     db_query_data_dir: str = str(Path.home() / ".db_query")
