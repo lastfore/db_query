@@ -1,89 +1,66 @@
 # Database Query Tool
 
-A web-based tool for managing PostgreSQL database connections, viewing metadata, and executing SQL queries with natural language support.
+A web-based tool for managing **PostgreSQL and MySQL** connections, browsing schema metadata, and running SQL queries—with optional natural language → SQL generation.
 
-## Project Structure
+## Project structure
 
 ```
-w2/db_query/
+db_query/
 ├── backend/          # FastAPI backend (Python 3.12+)
-├── frontend/         # React frontend (TypeScript, Refine 5)
+├── frontend/         # React 18 + TypeScript (Refine / @refinedev/core 5.x, Ant Design)
 ├── fixtures/         # REST Client test files
-│   ├── test.rest     # API test requests
-│   └── README.md     # Testing guide
+│   ├── test.rest
+│   └── README.md
+├── docs/             # Architecture and feature notes
 └── Makefile          # Development commands
 ```
 
-## Quick Start
+## Quick start
 
-### Initial Setup
+### Initial setup
 
 ```bash
-# Install all dependencies
 make install
-
-# Setup database and environment
 make setup
-# Then edit backend/.env: set NL2SQL_PROVIDER and the matching API key (see backend/.env.example)
-
-# Start development servers
-make dev
+# Copy backend/.env.example → backend/.env and set NL2SQL_PROVIDER + the matching API key
 ```
 
-### Development Commands
+### Run dev servers
+
+`make dev` runs backend and frontend targets in sequence; the backend process does not exit, so **use two terminals** (or run backend in the background yourself):
 
 ```bash
-# View all available commands
-make help
-
-# Start backend only
+# Terminal 1
 make dev-backend
 
-# Start frontend only
+# Terminal 2
 make dev-frontend
-
-# Run tests
-make test
-
-# Format code
-make format
-
-# Run linters
-make lint
 ```
 
-## API Testing
+Open http://localhost:5173 — API docs at http://localhost:8000/docs.
 
-### Using REST Client (VSCode)
-
-1. Install [REST Client extension](https://marketplace.visualstudio.com/items?itemName=humao.rest-client)
-2. Open `fixtures/test.rest`
-3. Click "Send Request" above any HTTP request
-4. View responses in VSCode panel
-
-See `fixtures/README.md` for detailed testing guide.
-
-### Using Makefile
+### Common commands
 
 ```bash
-# Check if backend is running
-make health
-
-# Open API documentation
-make docs
+make help          # All Makefile targets
+make test          # Backend + frontend tests
+make lint          # Linters
+make format        # Format / fix where applicable
+make health        # GET /health (backend must be running)
 ```
 
-## Phase 1 Status
+## API testing
 
-✅ **Phase 1 Complete**: All setup and foundation tasks completed.
+### REST Client (VS Code / Cursor)
 
-- Backend project structure initialized
-- Frontend project structure initialized
-- Core infrastructure (FastAPI, database, models) ready
-- Data models defined with camelCase API convention
-- Makefile with common development tasks
-- REST Client test file for API testing
+1. Install [REST Client](https://marketplace.visualstudio.com/items?itemName=humao.rest-client)
+2. Open `fixtures/test.rest`
+3. Use “Send Request” above each request
 
-## Next Steps
+See `fixtures/README.md` for details.
 
-Proceed to Phase 2 for core feature implementation (US1 + US2).
+## Documentation
+
+- **Repo guide for AI / contributors**: `CLAUDE.md`
+- **Architecture and design notes**: `docs/` (start with `docs/ARCHITECTURE_INDEX.md` or `docs/README.md`)
+- **Backend (中文)**: `backend/README.md`

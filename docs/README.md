@@ -1,49 +1,18 @@
-# Database Query Tool Backend
+# Documentation
 
-FastAPI backend for the Database Query Tool application.
+This folder holds design and architecture notes for the Database Query Tool. It is **not** a second copy of backend setup instructions—use the repository root `README.md` and `backend/README.md` for install and run steps.
 
-## Setup
+## Where to start
 
-1. Install dependencies:
-```bash
-uv sync
-```
+| Topic | File |
+|--------|------|
+| Documentation index (architecture redesign) | [`ARCHITECTURE_INDEX.md`](./ARCHITECTURE_INDEX.md) |
+| Executive summary | [`ARCHITECTURE_SUMMARY.md`](./ARCHITECTURE_SUMMARY.md) |
+| Full redesign spec | [`ARCHITECTURE_REDESIGN.md`](./ARCHITECTURE_REDESIGN.md) |
+| MySQL-related notes | [`MYSQL_SUPPORT.md`](./MYSQL_SUPPORT.md) |
+| Export / data export work | [`EXPORT_IMPROVEMENT.md`](./EXPORT_IMPROVEMENT.md) |
+| Quick reference | [`QUICK_REFERENCE.md`](./QUICK_REFERENCE.md) |
 
-2. Create `.env` file from `.env.example`:
-```bash
-cp .env.example .env
-# Edit .env and add your OPENAI_API_KEY
-```
+## Environment configuration
 
-3. Run database migrations:
-```bash
-alembic upgrade head
-```
-
-4. Start the development server:
-```bash
-uvicorn app.main:app --reload
-```
-
-The API will be available at `http://localhost:8000`
-API documentation at `http://localhost:8000/docs`
-
-## Project Structure
-
-- `app/` - Application code
-  - `main.py` - FastAPI application entry point
-  - `config.py` - Configuration using Pydantic Settings
-  - `database.py` - SQLite database setup
-  - `models/` - SQLModel entities and Pydantic schemas
-  - `services/` - Business logic services
-  - `api/v1/` - API route handlers
-- `tests/` - Test files
-- `alembic/` - Database migrations
-
-## Development
-
-- Python 3.12+
-- Uses `uv` for package management
-- Uses `ruff` for linting
-- Uses `mypy` for type checking
-- Uses `pytest` for testing
+Natural language → SQL uses `NL2SQL_PROVIDER` (`openai`, `moonshot`, or `deepseek`) and the matching API key. See `backend/.env.example` and root `CLAUDE.md` for the full list of settings (including optional query limits, pool size, and metadata cache TTL).

@@ -127,8 +127,9 @@ make install
 make setup
 # Then edit backend/.env: set NL2SQL_PROVIDER and the matching API key (see backend/.env.example)
 
-# Start both servers
-make dev
+# Start servers (two terminals — backend blocks until stopped)
+make dev-backend   # terminal 1
+make dev-frontend  # terminal 2
 ```
 
 Open http://localhost:5173 in browser
@@ -138,10 +139,9 @@ Open http://localhost:5173 in browser
 **Makefile targets** (all defined in root Makefile):
 
 ```bash
-# Server management
-make dev                   # Start both backend & frontend
-make dev-backend          # Backend only (http://localhost:8000)
-make dev-frontend         # Frontend only (http://localhost:5173)
+# Server management (use two terminals; `make dev` runs backend first and blocks)
+make dev-backend          # Backend (http://localhost:8000)
+make dev-frontend         # Frontend (http://localhost:5173)
 
 # Testing
 make test                 # Run all tests
