@@ -34,3 +34,4 @@
 - All checklist items passed on first validation iteration.
 - No [NEEDS CLARIFICATION] markers were needed — feature description was sufficiently clear.
 - Assumptions section documents reasonable defaults for client-side processing, file naming, and scope boundaries.
+- Post-clarification (2026-04-15): 2 questions asked and resolved — "Execute & Export" tab scope (Manual SQL only) and NULL value representation in exports (CSV: empty field, JSON: null). Spec updated with Clarifications section and inline changes to FR-004, FR-005, FR-008, and User Story 2.

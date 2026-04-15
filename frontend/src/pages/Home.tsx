@@ -1,6 +1,6 @@
 /** Main page with integrated database management and query interface. */
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Card,
   Spin,
@@ -15,30 +15,40 @@ import {
   Empty,
   Tabs,
   Modal,
+  Dropdown,
 } from "antd";
+import type { MenuProps } from "antd";
 import {
   PlayCircleOutlined,
   SearchOutlined,
   DatabaseOutlined,
   ReloadOutlined,
   ExclamationCircleOutlined,
+  DownOutlined,
 } from "@ant-design/icons";
 import { apiClient } from "../services/api";
 import { DatabaseMetadata, TableMetadata } from "../types/metadata";
+import type { QueryResult } from "../types/query";
 import { MetadataTree } from "../components/MetadataTree";
 import { SqlEditor } from "../components/SqlEditor";
 import { DatabaseSidebar } from "../components/DatabaseSidebar";
 import { NaturalLanguageInput } from "../components/NaturalLanguageInput";
+import { ExportSuggestion } from "../components/ExportSuggestion";
+import {
+  exportQueryResultToCsv,
+  exportQueryResultToJson,
+} from "../utils/export";
 
 const { Title, Text } = Typography;
 
-interface QueryResult {
-  columns: Array<{ name: string; dataType: string }>;
-  rows: Array<Record<string, any>>;
-  rowCount: number;
-  executionTimeMs: number;
-  sql: string;
-}
+const motherDuckControlStyle: React.CSSProperties = {
+  height: 40,
+  fontWeight: 700,
+  textTransform: "uppercase",
+  letterSpacing: "0.04em",
+  borderWidth: 2,
+  borderColor: "#000000",
+};
 
 export const Home: React.FC = () => {
   const [selectedDatabase, setSelectedDatabase] = useState<string | null>(null);
@@ -51,6 +61,12 @@ export const Home: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"manual" | "natural">("manual");
   const [generatingSql, setGeneratingSql] = useState(false);
   const [nlError, setNlError] = useState<string | null>(null);
+  const [isNlGenerated, setIsNlGenerated] = useState(false);
+  const [showExportSuggestion, setShowExportSuggestion] = useState(false);
+  /** When set, SQL still matches last NL generation — skip clearing `isNlGenerated` until the user edits. */
+  const lastNlSqlRef = useRef<string | null>(null);
+  const isNlGeneratedRef = useRef(isNlGenerated);
+  isNlGeneratedRef.current = isNlGenerated;
 
   useEffect(() => {
     if (selectedDatabase) {
@@ -75,6 +91,14 @@ export const Home: React.FC = () => {
     }
   };
 
+  const updateSuggestionAfterExecute = (data: QueryResult) => {
+    if (isNlGeneratedRef.current && data.rows.length > 0) {
+      setShowExportSuggestion(true);
+    } else {
+      setShowExportSuggestion(false);
+    }
+  };
+
   const handleExecuteQuery = async () => {
     if (!selectedDatabase || !sql.trim()) {
       message.warning("Please enter a SQL query");
@@ -88,18 +112,95 @@ export const Home: React.FC = () => {
         { sql: sql.trim() }
       );
       setQueryResult(response.data);
+      updateSuggestionAfterExecute(response.data);
       message.success(
         `Query executed - ${response.data.rowCount} rows in ${response.data.executionTimeMs}ms`
       );
     } catch (error: any) {
       message.error(error.response?.data?.detail || "Query execution failed");
       setQueryResult(null);
+      setShowExportSuggestion(false);
     } finally {
       setExecuting(false);
     }
   };
 
+  const handleExecuteAndExport = async (format: "csv" | "json") => {
+    if (!selectedDatabase || !sql.trim()) {
+      message.warning("Please enter a SQL query");
+      return;
+    }
+
+    setExecuting(true);
+    try {
+      const response = await apiClient.post<QueryResult>(
+        `/api/v1/dbs/${selectedDatabase}/query`,
+        { sql: sql.trim() }
+      );
+      const data = response.data;
+      setQueryResult(data);
+      updateSuggestionAfterExecute(data);
+      message.success(
+        `Query executed - ${data.rowCount} rows in ${data.executionTimeMs}ms`
+      );
+
+      if (data.rows.length === 0) {
+        message.warning("No data to export");
+        return;
+      }
+
+      const runExport = () => {
+        if (!selectedDatabase) return;
+        if (format === "csv") {
+          exportQueryResultToCsv(data, selectedDatabase);
+        } else {
+          exportQueryResultToJson(data, selectedDatabase);
+        }
+        message.success(`Exported ${data.rowCount} rows to ${format.toUpperCase()}`);
+      };
+
+      if (data.rows.length > 10000) {
+        Modal.confirm({
+          title: "Large Dataset Warning",
+          icon: <ExclamationCircleOutlined />,
+          content: `You are about to export ${data.rowCount.toLocaleString()} rows. This may take a while and consume memory. Continue?`,
+          onOk: runExport,
+        });
+      } else {
+        runExport();
+      }
+    } catch (error: any) {
+      message.error(error.response?.data?.detail || "Query execution failed");
+      setQueryResult(null);
+      setShowExportSuggestion(false);
+    } finally {
+      setExecuting(false);
+    }
+  };
+
+  const executeAndExportMenuItems: MenuProps["items"] = [
+    {
+      key: "csv",
+      label: "EXPORT AS CSV",
+      style: { fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" },
+    },
+    {
+      key: "json",
+      label: "EXPORT AS JSON",
+      style: { fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.04em" },
+    },
+  ];
+
+  const onExecuteAndExportMenuClick: MenuProps["onClick"] = ({ key }) => {
+    if (key === "csv" || key === "json") {
+      void handleExecuteAndExport(key);
+    }
+  };
+
   const handleTableClick = (table: TableMetadata) => {
+    lastNlSqlRef.current = null;
+    setIsNlGenerated(false);
+    setShowExportSuggestion(false);
     setSql(`SELECT * FROM ${table.schemaName}.${table.name} LIMIT 100`);
   };
 
@@ -119,12 +220,16 @@ export const Home: React.FC = () => {
 
     setGeneratingSql(true);
     setNlError(null);
+    setShowExportSuggestion(false);
     try {
       const response = await apiClient.post<{ sql: string; explanation: string }>(
         `/api/v1/dbs/${selectedDatabase}/query/natural`,
         { prompt }
       );
-      setSql(response.data.sql);
+      const generated = response.data.sql;
+      lastNlSqlRef.current = generated;
+      setSql(generated);
+      setIsNlGenerated(true);
       setActiveTab("manual"); // Switch to manual tab to show generated SQL
       message.success("SQL generated successfully! You can now edit and execute it.");
     } catch (error: any) {
@@ -136,89 +241,55 @@ export const Home: React.FC = () => {
     }
   };
 
-  const handleExportCSV = () => {
-    if (!queryResult || queryResult.rows.length === 0) {
+  const handleSqlChange = (value: string | undefined) => {
+    const next = value ?? "";
+    if (lastNlSqlRef.current !== null && next === lastNlSqlRef.current) {
+      setSql(next);
+      return;
+    }
+    lastNlSqlRef.current = null;
+    setIsNlGenerated(false);
+    setSql(next);
+  };
+
+  const runExportWithOptionalConfirm = (format: "csv" | "json") => {
+    if (!queryResult || !selectedDatabase) {
+      message.warning("No data to export");
+      return;
+    }
+    if (queryResult.rows.length === 0) {
       message.warning("No data to export");
       return;
     }
 
-    // Warn if result is large
+    const run = () => {
+      if (!queryResult || !selectedDatabase) return;
+      if (format === "csv") {
+        exportQueryResultToCsv(queryResult, selectedDatabase);
+      } else {
+        exportQueryResultToJson(queryResult, selectedDatabase);
+      }
+      message.success(`Exported ${queryResult.rowCount} rows to ${format.toUpperCase()}`);
+    };
+
     if (queryResult.rows.length > 10000) {
       Modal.confirm({
         title: "Large Dataset Warning",
         icon: <ExclamationCircleOutlined />,
         content: `You are about to export ${queryResult.rowCount.toLocaleString()} rows. This may take a while and consume memory. Continue?`,
-        onOk: () => exportToCSV(),
+        onOk: run,
       });
     } else {
-      exportToCSV();
+      run();
     }
   };
 
-  const exportToCSV = () => {
-    if (!queryResult) return;
-
-    // Generate CSV content
-    const headers = queryResult.columns.map((col) => col.name);
-    const csvRows = [headers.join(",")];
-
-    queryResult.rows.forEach((row) => {
-      const values = headers.map((header) => {
-        const value = row[header];
-        // Handle null/undefined
-        if (value === null || value === undefined) return "";
-        // Escape quotes and wrap in quotes if contains comma or quote
-        const stringValue = String(value);
-        if (stringValue.includes(",") || stringValue.includes('"') || stringValue.includes("\n")) {
-          return `"${stringValue.replace(/"/g, '""')}"`;
-        }
-        return stringValue;
-      });
-      csvRows.push(values.join(","));
-    });
-
-    const csvContent = csvRows.join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
-    link.href = URL.createObjectURL(blob);
-    link.download = `${selectedDatabase}_${timestamp}.csv`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    message.success(`Exported ${queryResult.rowCount} rows to CSV`);
+  const handleExportCSV = () => {
+    runExportWithOptionalConfirm("csv");
   };
 
   const handleExportJSON = () => {
-    if (!queryResult || queryResult.rows.length === 0) {
-      message.warning("No data to export");
-      return;
-    }
-
-    // Warn if result is large
-    if (queryResult.rows.length > 10000) {
-      Modal.confirm({
-        title: "Large Dataset Warning",
-        icon: <ExclamationCircleOutlined />,
-        content: `You are about to export ${queryResult.rowCount.toLocaleString()} rows. This may take a while and consume memory. Continue?`,
-        onOk: () => exportToJSON(),
-      });
-    } else {
-      exportToJSON();
-    }
-  };
-
-  const exportToJSON = () => {
-    if (!queryResult) return;
-
-    const jsonContent = JSON.stringify(queryResult.rows, null, 2);
-    const blob = new Blob([jsonContent], { type: "application/json;charset=utf-8;" });
-    const link = document.createElement("a");
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
-    link.href = URL.createObjectURL(blob);
-    link.download = `${selectedDatabase}_${timestamp}.json`;
-    link.click();
-    URL.revokeObjectURL(link.href);
-    message.success(`Exported ${queryResult.rowCount} rows to JSON`);
+    runExportWithOptionalConfirm("json");
   };
 
   const tableColumns =
@@ -525,21 +596,40 @@ export const Home: React.FC = () => {
           }
           extra={
             activeTab === "manual" ? (
-              <Button
-                type="primary"
-                icon={<PlayCircleOutlined />}
-                onClick={handleExecuteQuery}
-                loading={executing}
-                size="large"
-                style={{
-                  height: 40,
-                  paddingLeft: 20,
-                  paddingRight: 20,
-                  fontWeight: 700,
-                }}
-              >
-                EXECUTE
-              </Button>
+              <Space size={8}>
+                <Button
+                  type="primary"
+                  icon={<PlayCircleOutlined />}
+                  onClick={handleExecuteQuery}
+                  loading={executing}
+                  size="large"
+                  style={{
+                    ...motherDuckControlStyle,
+                    paddingLeft: 20,
+                    paddingRight: 20,
+                  }}
+                >
+                  EXECUTE
+                </Button>
+                <Dropdown
+                  menu={{ items: executeAndExportMenuItems, onClick: onExecuteAndExportMenuClick }}
+                  disabled={executing}
+                >
+                  <Button
+                    size="large"
+                    loading={executing}
+                    disabled={executing}
+                    style={{
+                      ...motherDuckControlStyle,
+                      paddingLeft: 16,
+                      paddingRight: 16,
+                      background: "#FFDE00",
+                    }}
+                  >
+                    EXECUTE & EXPORT <DownOutlined />
+                  </Button>
+                </Dropdown>
+              </Space>
             ) : null
           }
           style={{ borderWidth: 2, borderColor: "#000000", marginBottom: 16 }}
@@ -565,7 +655,7 @@ export const Home: React.FC = () => {
                 children: (
                   <SqlEditor
                     value={sql}
-                    onChange={(value) => setSql(value || "")}
+                    onChange={handleSqlChange}
                     height="180px"
                   />
                 ),
@@ -642,6 +732,12 @@ export const Home: React.FC = () => {
             }
             style={{ borderWidth: 2, borderColor: "#000000" }}
           >
+            <ExportSuggestion
+              visible={isNlGenerated && queryResult.rows.length > 0 && showExportSuggestion}
+              onExportCsv={handleExportCSV}
+              onExportJson={handleExportJSON}
+              onDismiss={() => setShowExportSuggestion(false)}
+            />
             <Table
               columns={tableColumns}
               dataSource={queryResult.rows}

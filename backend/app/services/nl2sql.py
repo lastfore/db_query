@@ -128,10 +128,12 @@ Return ONLY the SQL query, nothing else. No explanations, no markdown, just the 
         try:
             messages = self._build_prompt(user_prompt, metadata, db_type)
 
+            # Moonshot (Kimi) rejects temperature < 1 for some models (API returns 400).
+            temperature = 1.0 if self.provider == "moonshot" else 0.1
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                temperature=0.1,
+                temperature=temperature,
                 max_tokens=settings.nl2sql_max_tokens,
             )
 

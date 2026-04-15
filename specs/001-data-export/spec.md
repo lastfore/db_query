@@ -5,6 +5,13 @@
 **Status**: Draft  
 **Input**: User description: "在构建的智能数据库查询工具的基础上，新增一个数据导出功能模块。支持CSV和JSON格式导出，自动化执行查询+导出流程，以及AI助手主动询问导出需求。"
 
+## Clarifications
+
+### Session 2026-04-15
+
+- Q: Should "Execute & Export" be available in both Manual SQL and Natural Language tabs, or only Manual SQL? → A: Manual SQL tab only. The Natural Language tab already has the AI assistant export suggestion (P3), avoiding UI redundancy.
+- Q: How should database NULL values appear in exported files? → A: CSV: empty field (`,,`); JSON: JSON `null`. This follows industry standard conventions for maximum tool compatibility.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Export Query Results to File (Priority: P1)
@@ -30,7 +37,7 @@ After running a query and seeing the results table, I click an export button, ch
 
 As a user who regularly runs the same type of query and exports the results, I want a single action that executes my query and immediately exports the results so that I can save time on repetitive workflows.
 
-The user writes or generates a SQL query, then triggers a combined "Execute & Export" action, selects the desired format, and the system runs the query and automatically downloads the results file without additional clicks.
+The user writes a SQL query in the Manual SQL tab, then triggers a combined "Execute & Export" action, selects the desired format, and the system runs the query and automatically downloads the results file without additional clicks. This feature is available only in the Manual SQL tab; the Natural Language tab uses the AI assistant export suggestion (P3) instead.
 
 **Why this priority**: This builds on the manual export capability (P1) to streamline a common repetitive workflow. It requires the basic export to already work, and delivers additional efficiency for power users.
 
@@ -38,9 +45,10 @@ The user writes or generates a SQL query, then triggers a combined "Execute & Ex
 
 **Acceptance Scenarios**:
 
-1. **Given** a user has entered a valid SQL query, **When** the user triggers the "Execute & Export" action and selects CSV, **Then** the system executes the query and automatically downloads the results as a CSV file.
-2. **Given** a user has entered a valid SQL query, **When** the user triggers the "Execute & Export" action and selects JSON, **Then** the system executes the query and automatically downloads the results as a JSON file.
+1. **Given** a user has entered a valid SQL query in the Manual SQL tab, **When** the user triggers the "Execute & Export" action and selects CSV, **Then** the system executes the query and automatically downloads the results as a CSV file.
+2. **Given** a user has entered a valid SQL query in the Manual SQL tab, **When** the user triggers the "Execute & Export" action and selects JSON, **Then** the system executes the query and automatically downloads the results as a JSON file.
 3. **Given** a user triggers "Execute & Export" with an invalid query, **When** the query fails, **Then** the system displays the error message and does not generate or download any file.
+4. **Given** a user is in the Natural Language tab, **When** they view the query interface, **Then** no "Execute & Export" button is displayed (export is offered via AI assistant suggestion instead).
 
 ---
 
@@ -78,11 +86,11 @@ After a natural language query completes and results are displayed, the AI assis
 - **FR-001**: System MUST allow users to export current query results to CSV format.
 - **FR-002**: System MUST allow users to export current query results to JSON format.
 - **FR-003**: System MUST provide export action buttons visible in the results area after a query executes successfully.
-- **FR-004**: System MUST generate CSV files conforming to RFC 4180 (proper quoting, escaping of special characters, UTF-8 encoding with BOM for spreadsheet compatibility).
-- **FR-005**: System MUST generate JSON files as a valid JSON array of objects, with column names as keys and properly typed values.
+- **FR-004**: System MUST generate CSV files conforming to RFC 4180 (proper quoting, escaping of special characters, UTF-8 encoding with BOM for spreadsheet compatibility). Database NULL values MUST be represented as empty fields.
+- **FR-005**: System MUST generate JSON files as a valid JSON array of objects, with column names as keys and properly typed values. Database NULL values MUST be represented as JSON `null`.
 - **FR-006**: System MUST name exported files using a clear convention that includes the query context and timestamp (e.g., `query_results_20260415_143022.csv`).
 - **FR-007**: System MUST prevent export when there are no results to export and display a clear message to the user.
-- **FR-008**: System MUST provide a combined "Execute & Export" action that runs the query and automatically downloads results in the selected format.
+- **FR-008**: System MUST provide a combined "Execute & Export" action in the Manual SQL tab that runs the query and automatically downloads results in the selected format. This action is not available in the Natural Language tab.
 - **FR-009**: System MUST display an AI assistant message after natural language query results are shown, offering export in CSV or JSON format with clickable action buttons.
 - **FR-010**: System MUST NOT display the AI export suggestion when the query returns zero results.
 - **FR-011**: System MUST include all column headers in the exported file, matching the column names displayed in the results table.
